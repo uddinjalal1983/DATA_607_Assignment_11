@@ -1,0 +1,197 @@
+---
+title: "DATA_607_Assignment_10_MJU"
+author: "Md Jalal Uddin"
+date: "November 7, 2016"
+output: html_document
+---
+
+```{r}
+#Create function to download a package
+packages <- function(x){
+  x <- as.character(match.call()[[2]])
+  if (!require(x,character.only=TRUE)){
+    install.packages(pkgs=x,repos="http://cran.r-project.org")
+    require(x,character.only=TRUE)
+  }
+}
+#installing packages
+packages("XML")
+packages("textcat")
+packages("tm")
+packages("RTextTools")
+packages("stringi")
+packages("proxy")
+packages("cluster")
+packages("topicmodels")
+packages("dplyr")
+packages("plyr")
+packages("stringr")
+packages("quanteda")
+packages("ggplot2")
+packages("RWeka")
+packages("downloader")
+packages("R.utils")
+packages("quanteda")
+
+```
+
+
+```{r}
+#loading packages
+library(stringr)
+library(tm)
+library(plyr)
+library(class)
+library(knitr)
+library(downloader)
+library(R.utils)
+library(quanteda)
+library(wordcloud)
+library(SnowballC)
+
+```
+
+```{r}
+# create function to download spam emails files from https://spamassassin.apache.org/publiccorpus.
+if (!dir.exists("spam")){
+  download.file(url = "https://spamassassin.apache.org/publiccorpus/20021010_spam.tar.bz2", destfile = "20021010_spam.tar.bz2")
+  untar("20021010_spam.tar.bz2",compressed = "bzip2")
+}
+spam_files2 = list.files(path = "spam",full.names = T)
+
+# Construct the corpus frame by reading the first document
+# Note that the first file in the spam folder is a non-relevant index document, so start at index 2.
+
+tmp = readLines(con = spam_files2[3])
+tmp = str_c(tmp, collapse = "")
+
+spam_corpus2 = Corpus(VectorSource(tmp))
+meta(spam_corpus2[[1]], "label") = "spam"
+
+# Add the remaining documents from the folder
+for (i in 3: length(spam_files2)) {
+ 
+  tmp = readLines(con = spam_files2[i])
+  tmp = str_c(tmp, collapse = "")
+  
+  if (length(tmp) != 0) {
+    tmp_corpus2 = Corpus(VectorSource(tmp))
+    meta(tmp_corpus2[[1]], "label") = "spam"
+    spam_corpus2 = c(spam_corpus2, tmp_corpus2)
+  }
+}
+
+
+```
+
+
+```{r}
+
+length(spam_corpus2) # show how many emails. I can see 500 email is there.  
+
+meta( spam_corpus2[[1]]) # checking meta tags of spam_corpus2
+
+spam_corpus2[[100]][1] # show first spam email of 100th file
+
+```
+
+
+```{r}
+# create function to download spam emails files from https://spamassassin.apache.org/publiccorpus.
+if (!dir.exists("ham")){
+  download.file(url = "https://spamassassin.apache.org/publiccorpus/20021010_easy_ham.tar.bz2", destfile = "20021010_easy_ham.tar.bz2")
+  untar("20021010_easy_ham.tar.bz2",compressed = "bzip2")
+}
+
+ham_files = list.files(path = "easy_ham",full.names = T)
+
+# Construct the corpus frame by reading the first document
+
+tmp = readLines(con = ham_files[1])
+tmp = str_c(tmp, collapse = "")
+
+ham_corpus = Corpus(VectorSource(tmp))
+meta(ham_corpus[[1]], "label") = "ham"
+
+# Add the remaining documents from the folder
+for (i in 2: length(ham_files)) {
+ 
+  tmp = readLines(con = ham_files[i])
+  tmp = str_c(tmp, collapse = "")
+  
+  if (length(tmp) != 0) {
+    tmp_corpus = Corpus(VectorSource(tmp))
+    meta(tmp_corpus[[1]], "label") = "ham"
+    ham_corpus = c(ham_corpus, tmp_corpus)
+  }
+}
+
+
+
+```
+
+```{r}
+length(ham_corpus) # show how many emails. I can see 2551 email is there.  
+
+meta(ham_corpus[[1]]) # checking meta tags of ham_corpus2
+
+ham_corpus[[200]][1] # show first spam email of 200th file
+
+```
+
+
+```{r}
+# combining both ham_corpus2,spam_corpus2 
+total_corpus = c(ham_corpus,spam_corpus2)
+
+# Checking the total_coupus 
+meta_data2 = data.frame(unlist(meta(total_corpus, "label")))
+table(meta_data2)
+
+```
+
+```{r}
+total_corpus[[2000]][1] #checking the 1st email of the 2000th file of total_corpus
+
+```
+
+```{r}
+#now cleanning total_corpus
+# Removing numbers 
+total_corpus = tm_map(total_corpus, content_transformer(removeNumbers))
+
+# Removing punctuation, brackets,  "\t" string
+total_corpus = tm_map(total_corpus, content_transformer(function(x) 
+  str_replace_all(x,pattern = "[[:punct:]]|\\<.+?\\>|\\t", replacement = " ")))
+
+
+total_corpus = tm_map(total_corpus, content_transformer(tolower)) # making all lower case
+total_corpus = tm_map(total_corpus, content_transformer(stripWhitespace)) # remove white spaces
+total_corpus = tm_map(total_corpus, content_transformer(removePunctuation))# remove punctuation
+total_corpus = tm_map(total_corpus, content_transformer(function(x) # removing stopwords
+  removeWords(x, stopwords("english"))))
+
+```
+
+```{r}
+total_corpus[[2000]][1] # show 1st email of the 2000th file after cleanning. 
+
+```
+
+```{r}
+(dt_matrix <- DocumentTermMatrix(total_corpus)) #converting document term matrix
+
+```
+
+```{r}
+(dt_matrix2<- removeSparseTerms(dt_matrix, 1-(10/length(total_corpus)))) #removing sparse term. 
+
+
+```
+
+```{r}
+wordcloud(total_corpus, max.words = 100) # creating word cloud of total_corpus after cleanning. 
+
+
+```
+
